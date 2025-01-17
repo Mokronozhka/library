@@ -1,6 +1,8 @@
 package main
 
 import (
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"library/internal/config"
 	"library/internal/logger"
 	"library/internal/server"
@@ -19,6 +21,12 @@ func main() {
 	//log.Warn().Msg("warn")
 	//log.Error().Msg("error")
 	//log.Fatal().Msg("fatal")
+
+	err := storage.Migrations("postgres://postgres:123@localhost:5432/library?sslmode=disable", "migrations")
+
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
 
 	mapStorage := storage.NewMapStorage()
 

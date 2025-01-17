@@ -1,0 +1,10 @@
+#docker compose up
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: library
+    ports:
+      - '5432:5432'

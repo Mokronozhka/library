@@ -1,94 +1,239 @@
 package server
 
 import (
+	"errors"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"library/internal/domain/models"
 	"library/internal/logger"
+	"library/internal/server/utils"
+	"library/internal/storage/storageerror"
 	"net/http"
 )
 
-func (s *ServerStruct) LoginUserHandler(ctx *gin.Context) {
-
-	var user models.UserLoginStruct
-	var UID, tokenString string
-	var err error
+func (s *ServerStruct) RegistrationUserHandler(ctx *gin.Context) {
 
 	log := logger.Get()
 
+	var user models.UserStruct
+	var err error
+	var ID, token string
+
 	if err = ctx.ShouldBindBodyWithJSON(&user); err != nil {
-		log.Error().Err(err).Msg("loginHandler / Bad structure")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}) // ??? Почему тут мы пишем в ctx ответ?
-		// Да ещё и с методом JSON?
-		// В Вашем примере в gin.H передаётся err, а IDE мне предлагает err.Error(). В чём разница?
+		log.Error().Err(err).Msg("Unmarshall body error")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err = s.valid.Struct(user); err != nil {
-		log.Error().Err(err).Msg("loginHandler / Bad data")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}) // ??? Почему тут мы пишем в ctx ответ?
+		log.Error().Err(err).Msg("Invalid body structure")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	UID, err = s.uService.LoginUser(user) // ??? Почему в LoginUser мы обращаемся через storage к ValidateUser(user)
-	// а здесь сразу к LoginUser, пропуская storage? Хотя используем одинаковый обюъект UserServiceStruct.
-	// Почему это возможно?
+	ID, err = s.uService.RegistrationUser(user)
 
 	if err != nil {
-		log.Error().Err(err).Msg("loginHandler / Login fail")
-		// Что за конструкция? Почему передаём Err и потом ещё добавляем MSG?
-		ctx.JSON(http.StatusUnauthorized, gin.H{"msg": "Invalid data", "error": err.Error()}) // Почему тут msg, а выше error?
+		log.Error().Err(err).Msg("Registration user fail")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	tokenString, err = CreateToken(UID)
+	token, err = util.CreateToken(ID)
 
 	if err != nil {
-		log.Error().Err(err).Msg("loginHandler / Token creation error")
-		// Что за конструкция? Почему передаём Err и потом ещё добавляем MSG?
-		ctx.JSON(http.StatusInternalServerError, gin.H{"msg": "Token creation error", "error": err.Error()})
+		log.Error().Err(err).Msg("Token creation error")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"token": tokenString})
+	ctx.Header("Authorization", token)
+
+	ctx.JSON(http.StatusOK,
+		gin.H{"result": fmt.Sprintf("User registered. ID - %s", ID)})
 
 }
 
-func (s *ServerStruct) RegistrationUserHandler(ctx *gin.Context) {
-
-	var user models.UserStruct
-	var UID, tokenString string
-	var err error
+func (s *ServerStruct) LoginUserHandler(ctx *gin.Context) {
 
 	log := logger.Get()
 
-	if err = ctx.ShouldBindBodyWithJSON(&user); err != nil {
-		log.Error().Err(err).Msg("RegistrationUserHandler / Bad structure")
+	var user models.UserLoginStruct
+	var err error
+	var ID, token string
+
+	if err := ctx.ShouldBindBodyWithJSON(&user); err != nil {
+		log.Error().Err(err).Msg("Unmarshall body error")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err = s.valid.Struct(user); err != nil {
-		log.Error().Err(err).Msg("RegistrationUserHandler / Bad data")
+	if err := s.valid.Struct(user); err != nil {
+		log.Error().Err(err).Msg("Invalid body structure")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	UID, err = s.uService.RegistrationUser(user)
+	ID, err = s.uService.LoginUser(user)
 
 	if err != nil {
-		log.Error().Err(err).Msg("RegistrationUserHandler / Login fail")
-		ctx.JSON(http.StatusUnauthorized, gin.H{"msg": "Invalid data", "error": err.Error()})
+		log.Error().Err(err).Msg("Login user fail")
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	tokenString, err = CreateToken(UID)
+	token, err = util.CreateToken(ID)
 
 	if err != nil {
-		log.Error().Err(err).Msg("RegistrationUserHandler / Token creation error")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"msg": "Token creation error", "error": err.Error()})
+		log.Error().Err(err).Msg("Token creation error")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"token": tokenString})
+	ctx.Header("Authorization", token)
+
+	ctx.JSON(http.StatusOK, gin.H{"result": fmt.Sprintf("User logged. ID - %s", ID)})
+
+}
+
+func (s *ServerStruct) GetUsersHandler(ctx *gin.Context) {
+
+	log := logger.Get()
+
+	users, err := s.uService.GetUsers()
+
+	if err != nil {
+		log.Error().Err(err).Msg("get users error")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"result": users})
+
+}
+
+func (s *ServerStruct) GetUserHandler(ctx *gin.Context) {
+
+	log := logger.Get()
+
+	id := ctx.Param("id")
+
+	if id == "" {
+		log.Error().Msg("User ID is empty")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID is empty"})
+		return
+	}
+
+	user, err := s.uService.GetUser(id)
+
+	if err != nil {
+		log.Error().Err(err).Msg("Get user failed")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"result": user})
+
+}
+
+func (s *ServerStruct) AddUserHandler(ctx *gin.Context) {
+
+	log := logger.Get()
+
+	var user models.UserStruct
+
+	if err := ctx.ShouldBindBodyWithJSON(&user); err != nil {
+		log.Error().Err(err).Msg("Unmarshall body error")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := s.valid.Struct(user); err != nil {
+		log.Error().Err(err).Msg("Invalid body structure")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	id, err := s.uService.AddUser(user)
+
+	if err != nil {
+
+		log.Error().Err(err).Msg("Add user failed")
+
+		status := http.StatusInternalServerError
+
+		if errors.Is(err, storageerror.ErrUserAlreadyExist) {
+			status = http.StatusConflict
+		}
+
+		ctx.JSON(status, gin.H{"error": err.Error()})
+
+		return
+
+	}
+
+	ctx.JSON(http.StatusCreated, gin.H{"result": fmt.Sprintf("User added. ID - %s", id)})
+
+}
+
+func (s *ServerStruct) EditUserHandler(ctx *gin.Context) {
+
+	log := logger.Get()
+
+	id := ctx.Param("id")
+
+	if id == "" {
+		log.Error().Msg("User ID is empty")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID is empty"})
+		return
+	}
+
+	var user models.UserStruct
+
+	if err := ctx.ShouldBindBodyWithJSON(&user); err != nil {
+		log.Error().Err(err).Msg("Unmarshall body error")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := s.valid.Struct(user); err != nil {
+		log.Error().Err(err).Msg("Invalid body structure")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := s.uService.EditUser(id, user)
+
+	if err != nil {
+		log.Error().Err(err).Msg("Edit user failed")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"result": "User edited"})
+
+}
+
+func (s *ServerStruct) DeleteUserHandler(ctx *gin.Context) {
+
+	log := logger.Get()
+
+	id := ctx.Param("id")
+
+	if id == "" {
+		log.Error().Msg("User ID is empty")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User ID is empty"})
+		return
+	}
+
+	err := s.uService.DeleteUser(id)
+
+	if err != nil {
+		log.Error().Err(err).Msg("Delete user failed")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"result": "User removed"})
 
 }

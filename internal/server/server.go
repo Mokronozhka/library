@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/validator"
 	"library/internal/config"
 	"library/internal/logger"
+	"library/internal/server/utils"
 	"library/internal/service"
 	"net/http"
 )
@@ -82,21 +83,46 @@ func (s *ServerStruct) configRouting() *gin.Engine {
 	users := router.Group("/users")
 	{
 		users.POST("/registration", s.RegistrationUserHandler)
-		users.POST("/login", s.LoginUserHandler) // ??? В параметрах функции LoginUserHandler у нас контекст, но здесь мы его не указываем
-		// Как он тогда передаётся туда? И почему мы указываем функцию без ()?
-		//users.POST("/logout")
-		users.GET("/info")
+		users.POST("/login", s.LoginUserHandler)
+		users.GET("/", s.JWTAuthMiddleware(), s.GetUsersHandler)
+		users.GET("/:id", s.JWTAuthMiddleware(), s.GetUserHandler)
+		users.POST("/", s.JWTAuthMiddleware(), s.AddUserHandler)
+		users.PUT("/:id", s.JWTAuthMiddleware(), s.EditUserHandler)
+		users.DELETE("/:id", s.JWTAuthMiddleware(), s.DeleteUserHandler)
 	}
 
 	books := router.Group("/books")
 	{
-		books.GET("/", s.GetBooksHandler)
-		books.GET("/:id", s.GetBookHandler)
-		books.POST("/add", s.AddBookHandler)
-		//books.POST("/edit")
-		books.DELETE("/:id", s.DeleteBookHandler)
+		books.GET("/", s.JWTAuthMiddleware(), s.GetBooksHandler)
+		books.GET("/:id", s.JWTAuthMiddleware(), s.GetBookHandler)
+		books.POST("/", s.JWTAuthMiddleware(), s.AddBookHandler)
+		books.PUT("/:id", s.JWTAuthMiddleware(), s.EditBookHandler)
+		books.DELETE("/:id", s.JWTAuthMiddleware(), s.DeleteBookHandler)
 	}
 
 	return router
+
+}
+
+func (s *ServerStruct) JWTAuthMiddleware() gin.HandlerFunc {
+
+	return func(ctx *gin.Context) {
+		log := logger.Get()
+		token := ctx.GetHeader("Authorization")
+		if token == "" {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "token is empty"})
+			ctx.Abort()
+			return
+		}
+		err := util.ValidateToken(token)
+		if err != nil {
+			log.Error().Err(err).Send()
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			ctx.Abort()
+			return
+		}
+		//ctx.Set("ID", ID)
+		//ctx.Next() // B ,p 'njuj vtnjl;f
+	}
 
 }

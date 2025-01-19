@@ -8,6 +8,7 @@ var (
 	ErrBookNotFound     = errors.New("book not found")
 
 	ErrUserAlreadyExist    = errors.New("user already exists")
+	ErrUserStorageEmpty    = errors.New("user storage is empty")
 	ErrUserInvalidPassword = errors.New("user invalid password")
-	ErrUserNotFound        = errors.New("user not found password")
+	ErrUserNotFound        = errors.New("user not found")
 )

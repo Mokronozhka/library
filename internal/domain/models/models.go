@@ -10,7 +10,7 @@ type UserStruct struct {
 	Name             string    `json:"name" validate:"required"`
 	Password         string    `json:"pwd" validate:"required,min=8"`
 	Email            string    `json:"email" validate:"required,email"`
-	Age              int       `json:"age,omitempty" validate:"gte=14"`
+	Age              int       `json:"age,omitempty" validate:"omitempty,gte=14"`
 	DateRegistration time.Time `json:"date_reg,omitempty"`
 }
 

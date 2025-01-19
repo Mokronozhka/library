@@ -10,10 +10,16 @@ var key = []byte("SecretKey")
 
 func CreateToken(UID string) (string, error) {
 
-	payload := jwt.MapClaims{
-		"iss": "Server",
-		"sub": UID,
-		"exp": time.Now().Add(5 * time.Minute),
+	//payload := jwt.MapClaims{
+	//	"iss": "Server",
+	//	"sub": UID,
+	//	"exp": time.Now().Add(5 * time.Minute),
+	//}
+
+	payload := jwt.RegisteredClaims{
+		Issuer:    "Server",
+		Subject:   UID,
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 5)),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)

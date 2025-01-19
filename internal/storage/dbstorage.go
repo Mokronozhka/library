@@ -46,12 +46,12 @@ func Migrations(dbDSN string, migratePath string) error {
 	}
 
 	if err := m.Up(); err != nil {
-		if errors.Is(err, migrate.ErrNoChange) {
-			log.Error().Err(err).Msg("failed migrate two")
+
+		if !errors.Is(err, migrate.ErrNoChange) {
 			return nil
+			log.Error().Err(err).Msg("failed migrate three")
 		}
-		log.Error().Err(err).Msg("failed migrate three")
-		return err
+
 	}
 
 	log.Debug().Msg("migrate ok")

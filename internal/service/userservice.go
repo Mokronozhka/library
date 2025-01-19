@@ -1,15 +1,14 @@
 package service
 
-import (
-	"bytes"
-	"encoding/json"
-	"library/internal/domain/models"
-	"library/internal/logger"
-)
+import "library/internal/domain/models"
 
 type UserStorage interface {
+	GetUsers() ([]models.UserStruct, error)
+	GetUser(string) (models.UserStruct, error)
 	SaveUser(models.UserStruct) (string, error)
 	ValidateUser(models.UserLoginStruct) (string, error)
+	EditUser(string, models.UserStruct) error
+	DeleteUser(string) error
 }
 
 type UserServiceStruct struct {
@@ -17,39 +16,33 @@ type UserServiceStruct struct {
 }
 
 func NewUserService(storage UserStorage) UserServiceStruct {
-
 	return UserServiceStruct{storage: storage}
-
-}
-
-func (us UserServiceStruct) LoginUser(user models.UserLoginStruct) (string, error) {
-
-	log := logger.Get()
-
-	json.NewDecoder(bytes.NewBufferString(user.Password)).Decode(&user)
-
-	UID, err := us.storage.ValidateUser(user)
-
-	if err != nil {
-		log.Error().Err(err).Msg("LoginUser / User validation error")
-		return "", err
-	}
-
-	return UID, nil
-
 }
 
 func (us UserServiceStruct) RegistrationUser(user models.UserStruct) (string, error) {
+	return us.storage.SaveUser(user)
+}
 
-	log := logger.Get()
+func (us UserServiceStruct) LoginUser(user models.UserLoginStruct) (string, error) {
+	return us.storage.ValidateUser(user)
+}
 
-	UID, err := us.storage.SaveUser(user)
+func (us UserServiceStruct) GetUsers() ([]models.UserStruct, error) {
+	return us.storage.GetUsers()
+}
 
-	if err != nil {
-		log.Error().Err(err).Msg("RegistrationUser / User save error")
-		return "", err
-	}
+func (us UserServiceStruct) GetUser(id string) (models.UserStruct, error) {
+	return us.storage.GetUser(id)
+}
 
-	return UID, nil
+func (us UserServiceStruct) AddUser(user models.UserStruct) (string, error) {
+	return us.storage.SaveUser(user)
+}
 
+func (us UserServiceStruct) EditUser(id string, user models.UserStruct) error {
+	return us.storage.EditUser(id, user)
+}
+
+func (us UserServiceStruct) DeleteUser(id string) error {
+	return us.storage.DeleteUser(id)
 }

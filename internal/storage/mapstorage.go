@@ -5,8 +5,8 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"library/internal/domain/models"
-	"library/internal/logger"
 	"library/internal/storage/storageerror"
+	"time"
 )
 
 type MapStorage struct {
@@ -21,22 +21,65 @@ func NewMapStorage() *MapStorage { // Откуда IDE знает что я хо
 
 }
 
-func (ms *MapStorage) SaveUser(user models.UserStruct) (string, error) {
+//type MapUserStorage struct {
+//	userStorage map[string]models.UserStruct
+//}
+//
+//func NewMapUserStorage() *MapUserStorage { // Откуда IDE знает что я хочу написать??? Она и эту строку сама сгенерировала
+//
+//	return &MapUserStorage{userStorage: make(map[string]models.UserStruct)}
+//
+//}
+//
+//type MapBookStorage struct {
+//	bookStorage map[string]models.BookStruct
+//}
+//
+//func NewMapBookStorage() *MapBookStorage {
+//
+//	return &MapBookStorage{bookStorage: make(map[string]models.BookStruct)}
+//
+//}
 
-	log := logger.Get()
+func (ms *MapStorage) GetUsers() ([]models.UserStruct, error) {
+
+	if len(ms.userStorage) == 0 {
+		return nil, storageerror.ErrUserStorageEmpty
+	}
+
+	var users []models.UserStruct
+
+	for _, usr := range ms.userStorage {
+		users = append(users, usr)
+	}
+
+	return users, nil
+
+}
+
+func (ms *MapStorage) GetUser(id string) (models.UserStruct, error) {
+
+	user, ok := ms.userStorage[id]
+
+	if !ok {
+		return models.UserStruct{}, storageerror.ErrUserNotFound
+	}
+
+	return user, nil
+
+}
+
+func (ms *MapStorage) SaveUser(user models.UserStruct) (string, error) {
 
 	for _, usr := range ms.userStorage {
 
-		if usr.Email == user.Email { // ??? IDE тоже сама подставила. Откуда она всё знает?
-			//return errors.New("User already exists") // ??? IDE тоже сама подставила. Откуда она всё знает?
-			return "", fmt.Errorf("user with email %s already exists", user.Email) // ??? IDE тоже сама подставила строку в кавычках
-			// ??? Почему на уроке используем fmt
-			// а не строку выше?
+		if usr.Email == user.Email {
+			return "", storageerror.ErrUserAlreadyExist
 		}
 
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost) // ??? Опять IDE сама всю строку сделала. Как?
+	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost)
 
 	if err != nil {
 		return "", err
@@ -48,10 +91,9 @@ func (ms *MapStorage) SaveUser(user models.UserStruct) (string, error) {
 	IDStr := ID.String()
 
 	user.ID = ID
+	user.DateRegistration = time.Now()
 
 	ms.userStorage[IDStr] = user
-
-	log.Debug().Any("user storage", ms.userStorage).Msg("Check user storage")
 
 	return IDStr, nil
 
@@ -59,12 +101,18 @@ func (ms *MapStorage) SaveUser(user models.UserStruct) (string, error) {
 
 func (ms *MapStorage) ValidateUser(user models.UserLoginStruct) (string, error) {
 
-	for key, usr := range ms.userStorage {
+	//err := json.NewDecoder(bytes.NewBufferString(user.Password)).Decode(&user) // ДЛЯ ЧЕГО И ОТКУДА???
 
-		if usr.Email == user.Email {
+	//if err != nil {
+	//	return "", err
+	//}
 
-			if err := bcrypt.CompareHashAndPassword([]byte(usr.Password), []byte(user.Password)); err != nil { // IDE сгенерировала строку
-				return "", fmt.Errorf("invalid user password")
+	for key, userMS := range ms.userStorage {
+
+		if userMS.Email == user.Email {
+
+			if err := bcrypt.CompareHashAndPassword([]byte(userMS.Password), []byte(user.Password)); err != nil {
+				return "", storageerror.ErrUserInvalidPassword
 			}
 
 			return key, nil
@@ -73,7 +121,64 @@ func (ms *MapStorage) ValidateUser(user models.UserLoginStruct) (string, error) 
 
 	}
 
-	return "", fmt.Errorf("user not found")
+	return "", storageerror.ErrUserNotFound
+
+}
+
+func (ms *MapStorage) EditUser(id string, user models.UserStruct) error {
+
+	userMS, ok := ms.userStorage[id]
+
+	if !ok {
+		return storageerror.ErrUserNotFound
+	}
+
+	if userMS.Email != user.Email {
+
+		for _, userCheck := range ms.userStorage {
+
+			if userCheck.Email == user.Email {
+				return fmt.Errorf("user with email %s already exists", user.Email)
+			}
+
+		}
+
+	}
+
+	if errCompare := bcrypt.CompareHashAndPassword([]byte(userMS.Password), []byte(user.Password)); errCompare != nil {
+
+		hash, errGen := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.MinCost)
+
+		if errGen != nil {
+			return errGen
+		}
+
+		user.Password = string(hash)
+
+	} else {
+		user.Password = userMS.Password
+	}
+
+	user.ID = userMS.ID
+	user.DateRegistration = userMS.DateRegistration
+
+	ms.userStorage[id] = user
+
+	return nil
+
+}
+
+func (ms *MapStorage) DeleteUser(id string) error {
+
+	_, ok := ms.userStorage[id]
+
+	if !ok {
+		return storageerror.ErrUserNotFound
+	}
+
+	delete(ms.userStorage, id)
+
+	return nil
 
 }
 
@@ -85,7 +190,7 @@ func (ms *MapStorage) GetBooks() ([]models.BookStruct, error) {
 
 	var books []models.BookStruct
 
-	for _, bk := range ms.bookStorage { // IDE всё знает!?
+	for _, bk := range ms.bookStorage {
 		books = append(books, bk)
 	}
 
@@ -107,8 +212,6 @@ func (ms *MapStorage) GetBook(id string) (models.BookStruct, error) {
 
 func (ms *MapStorage) SaveBook(book models.BookStruct) (string, error) {
 
-	log := logger.Get()
-
 	for _, bk := range ms.bookStorage {
 
 		if bk.Name == book.Name && bk.Author == book.Author {
@@ -124,9 +227,35 @@ func (ms *MapStorage) SaveBook(book models.BookStruct) (string, error) {
 
 	ms.bookStorage[IDStr] = book
 
-	log.Debug().Any("book storage", ms.bookStorage).Msg("Check book storage")
-
 	return IDStr, nil
+
+}
+
+func (ms *MapStorage) EditBook(id string, book models.BookStruct) error {
+
+	bookMS, ok := ms.bookStorage[id]
+
+	if !ok {
+		return storageerror.ErrBookNotFound
+	}
+
+	if bookMS.Name != book.Name || bookMS.Author != book.Author {
+
+		for _, bookCheck := range ms.bookStorage {
+
+			if bookCheck.Name == book.Name && bookCheck.Author == book.Author {
+				return fmt.Errorf("book with name %s and author %s already exists", book.Name, book.Author)
+			}
+
+		}
+
+	}
+
+	book.ID = bookMS.ID
+
+	ms.bookStorage[id] = book
+
+	return nil
 
 }
 

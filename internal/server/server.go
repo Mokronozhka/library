@@ -12,15 +12,6 @@ import (
 	"net/http"
 )
 
-//type Storage interface {
-//	SaveUser()
-//	ValidUser()
-//	SaveBook()
-//	DeleteBook()
-//	GetBooks()
-//	GetBook()
-//}
-
 type ServerStruct struct {
 	server   *http.Server              // Структура Server из пакета http, чтобы мы могли вызывать грейсфул шатдаун
 	valid    *validator.Validate       // Ссылка на оригинальную переменную
@@ -121,8 +112,7 @@ func (s *ServerStruct) JWTAuthMiddleware() gin.HandlerFunc {
 			ctx.Abort()
 			return
 		}
-		//ctx.Set("ID", ID)
-		//ctx.Next() // B ,p 'njuj vtnjl;f
+		ctx.Next() // Работает и без него
 	}
 
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GoLinterSettings">
+    <option name="goLinterExe" value="C:\Go\Tools\Go Linter\golangci-lint.exe" />
+    <option name="severity" value="Default" />
+  </component>
+</project>

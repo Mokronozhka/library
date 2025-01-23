@@ -559,7 +559,7 @@ func (db *DBStorage) DeleteBook(id string) error {
 	_, err = db.conn.Exec(ctx, "DELETE FROM Books WHERE ID = $1", ID)
 
 	if err != nil {
-		log.Error().Err(err).Msg("Failed delete book")
+		log.Error().Err(err).Msg("Failed delete book - 001")
 		return err
 	}
 

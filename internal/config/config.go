@@ -16,7 +16,7 @@ type ConfigStruct struct {
 }
 
 const (
-	defaultHost = "localhost"
+	defaultHost = "0.0.0.0"
 	defaultPort = 8080
 )
 
@@ -42,7 +42,7 @@ func ReadConfig() ConfigStruct {
 	}
 
 	cfg.MigratePath = cmp.Or(os.Getenv("MIGRATE_PATH"), "migrations")
-	cfg.DbDSN = cmp.Or(os.Getenv("DB_DSN"), "postgres://postgres:123@localhost:5432/library?sslmode=disable")
+	cfg.DbDSN = cmp.Or(os.Getenv("DB_DSN"), "postgres://postgres:123@0.0.0.0:5432/library?sslmode=disable")
 
 	return cfg
 

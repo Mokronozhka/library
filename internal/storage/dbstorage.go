@@ -38,18 +38,21 @@ func Migrations(dbDSN string, migratePath string) error {
 
 	migrationPath := fmt.Sprintf("file://%s", migratePath)
 
-	m, err := migrate.New(migrationPath, dbDSN)
+	var err error
+	var m *migrate.Migrate
+
+	m, err = migrate.New(migrationPath, dbDSN)
 
 	if err != nil {
 		log.Error().Err(err).Msg("failed migrate one")
 		return err
 	}
 
-	if err := m.Up(); err != nil {
+	if err = m.Up(); err != nil {
 
 		if !errors.Is(err, migrate.ErrNoChange) {
-			return nil
 			log.Error().Err(err).Msg("failed migrate three")
+			return nil
 		}
 
 	}

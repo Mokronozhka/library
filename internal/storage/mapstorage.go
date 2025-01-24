@@ -87,25 +87,19 @@ func (ms *MapStorage) SaveUser(user models.UserStruct) (string, error) {
 
 	user.Password = string(hash)
 
-	ID := uuid.New()
-	IDStr := ID.String()
+	id := uuid.New()
+	idStr := id.String()
 
-	user.ID = ID
+	user.ID = id
 	user.DateRegistration = time.Now()
 
-	ms.userStorage[IDStr] = user
+	ms.userStorage[idStr] = user
 
-	return IDStr, nil
+	return idStr, nil
 
 }
 
 func (ms *MapStorage) ValidateUser(user models.UserLoginStruct) (string, error) {
-
-	//err := json.NewDecoder(bytes.NewBufferString(user.Password)).Decode(&user) // ДЛЯ ЧЕГО И ОТКУДА???
-
-	//if err != nil {
-	//	return "", err
-	//}
 
 	for key, userMS := range ms.userStorage {
 

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -8,6 +9,7 @@ import (
 	"library/internal/logger"
 	"library/internal/storage/storageerror"
 	"net/http"
+	"time"
 )
 
 func (s *ServerStruct) GetBooksHandler(ctx *gin.Context) {
@@ -147,7 +149,34 @@ func (s *ServerStruct) DeleteBookHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
+	s.chanDel <- struct{}{}
 	ctx.JSON(http.StatusOK, gin.H{"result": "Book removed"})
 
+}
+
+func (s *ServerStruct) deleter(ctx context.Context) {
+	log := logger.Get()
+	defer log.Debug().Msg("deleter stopped")
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debug().Msg("deleter. ctx.Done()")
+			return
+		case <-time.After(5 * time.Minute):
+			//case <-time.After(5 * time.Second):
+			//log.Debug().Int("len", len(s.chanDel)).Int("cap", cap(s.chanDel)).Msg("deleter. channel check")
+			if len(s.chanDel) == cap(s.chanDel) {
+				log.Debug().Int("len", len(s.chanDel)).Int("cap", cap(s.chanDel)).Msg("deleter. channel full")
+				for i := 0; i < cap(s.chanDel); i++ {
+					<-s.chanDel
+				}
+				if err := s.bService.DeleteBooks(); err != nil {
+					log.Error().Err(err).Msg("Delete books failed")
+					s.ChanErr <- err
+					return
+				}
+			}
+
+		}
+	}
 }

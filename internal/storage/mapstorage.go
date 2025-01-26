@@ -266,3 +266,6 @@ func (ms *MapStorage) DeleteBook(id string) error {
 	return nil
 
 }
+func (ms *MapStorage) DeleteBooks() error {
+	return nil
+}

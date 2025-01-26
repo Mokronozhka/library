@@ -62,6 +62,11 @@ func Migrations(dbDSN string, migratePath string) error {
 
 }
 
+func (db *DBStorage) Close() error {
+	return db.conn.Close(context.Background())
+
+}
+
 func (db *DBStorage) GetUsers() ([]models.UserStruct, error) {
 
 	log := logger.Get()
@@ -559,7 +564,7 @@ func (db *DBStorage) DeleteBook(id string) error {
 
 	}
 
-	_, err = db.conn.Exec(ctx, "DELETE FROM Books WHERE ID = $1", ID)
+	_, err = db.conn.Exec(ctx, "UPDATE Books SET Deleted = true WHERE ID = $1", ID)
 
 	if err != nil {
 		log.Error().Err(err).Msg("Failed delete book")
@@ -567,5 +572,38 @@ func (db *DBStorage) DeleteBook(id string) error {
 	}
 
 	return nil
+
+}
+
+func (db *DBStorage) DeleteBooks() error {
+
+	log := logger.Get()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+
+	defer cancel()
+
+	tx, err := db.conn.Begin(ctx)
+
+	if err != nil {
+		log.Error().Err(err).Msg("Failed create transaction")
+		return err
+	}
+
+	defer func() {
+		err = tx.Rollback(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed rollback transaction")
+		}
+	}()
+
+	_, err = db.conn.Exec(ctx, "DELETE FROM Books WHERE Deleted = true")
+
+	if err != nil {
+		log.Error().Err(err).Msg("Failed delete book")
+		return err
+	}
+
+	return tx.Commit(ctx)
 
 }

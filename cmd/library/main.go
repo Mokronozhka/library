@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"golang.org/x/sync/errgroup"
@@ -10,6 +11,7 @@ import (
 	"library/internal/server"
 	"library/internal/service"
 	"library/internal/storage"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -76,8 +78,10 @@ func main() {
 	group, gCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
 		if err = s.Run(ctx); err != nil {
-			log.Error().Err(err).Send()
-			return err
+			if !errors.Is(err, http.ErrServerClosed) {
+				log.Error().Err(err).Send()
+				return err
+			}
 		}
 		return nil
 	})

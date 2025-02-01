@@ -57,7 +57,7 @@ func (s *ServerStruct) Run(ctx context.Context) error {
 	log.Info().Str("addr", s.server.Addr).Msg("starting server")
 
 	if err := s.server.ListenAndServe(); err != nil {
-		log.Error().Err(err).Msg("running server failed")
+		//log.Error().Err(err).Msg("running server failed")
 		return err
 	}
 

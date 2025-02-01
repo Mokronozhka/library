@@ -161,6 +161,7 @@ func (s *ServerStruct) deleter(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			log.Debug().Msg("deleter. ctx.Done()")
+			close(s.ChanErr)
 			return
 		case <-time.After(5 * time.Minute):
 			//case <-time.After(5 * time.Second):

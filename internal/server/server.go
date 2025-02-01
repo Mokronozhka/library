@@ -17,6 +17,8 @@ type ServerStruct struct {
 	valid    *validator.Validate       // Ссылка на оригинальную переменную
 	uService service.UserServiceStruct // Копия
 	bService service.BookServiceStruct // Копия
+	chanDel  chan struct{}
+	ChanErr  chan error
 }
 
 func New(cfg config.ConfigStruct,
@@ -35,23 +37,27 @@ func New(cfg config.ConfigStruct,
 		valid:    valid,   // ??? Почему тут без &?
 		uService: uService,
 		bService: bService,
+		chanDel:  make(chan struct{}, 10),
+		ChanErr:  make(chan error, 10),
 	}
 
 	// ??? Почему мы валидатор и структуры пользователя и книги запихиваем в структуру сервера?
 
 }
 
-func (s *ServerStruct) Run() error {
+func (s *ServerStruct) Run(ctx context.Context) error {
 
 	log := logger.Get()
 
 	router := s.configRouting() // Конфигурацию путей вынесли в отдельную функцию
 	s.server.Handler = router
 
+	go s.deleter(ctx)
+
 	log.Info().Str("addr", s.server.Addr).Msg("starting server")
 
 	if err := s.server.ListenAndServe(); err != nil {
-		log.Error().Err(err).Msg("running server failed")
+		//log.Error().Err(err).Msg("running server failed")
 		return err
 	}
 

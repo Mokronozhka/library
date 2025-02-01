@@ -1,17 +1,18 @@
 CREATE TABLE IF NOT EXISTS Users(
-    ID varchar(36) NOT NULL PRIMARY KEY,
-    Name text NOT NULL,
-    Password text NOT NULL,
-    Email text NOT NULL,
+    ID varchar(36) not null primary key,
+    Name text not null,
+    Password text not null,
+    Email text not null,
     Age integer,
-    DateRegistration timestamp NOT NULL default NOW(),
-    UNIQUE (email)
-    );
+    DateRegistration timestamp not null default now(),
+    unique (email)
+);
 
 CREATE TABLE IF NOT EXISTS Books(
-    ID varchar(36) NOT NULL PRIMARY KEY,
-    Name text NOT NULL,
+    ID varchar(36) not null primary key,
+    Name text not null,
     Description text,
-    Author text NOT NULL,
-    DateWriting timestamp
+    Author text not null,
+    DateWriting timestamp,
+    Deleted boolean not null default false
 );

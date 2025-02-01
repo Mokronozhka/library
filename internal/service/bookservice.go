@@ -8,6 +8,7 @@ type BookStorage interface {
 	SaveBook(models.BookStruct) (string, error)
 	EditBook(string, models.BookStruct) error
 	DeleteBook(string) error
+	DeleteBooks() error
 }
 
 type BookServiceStruct struct {
@@ -36,4 +37,8 @@ func (bs BookServiceStruct) EditBook(id string, book models.BookStruct) error {
 
 func (bs BookServiceStruct) DeleteBook(id string) error {
 	return bs.storage.DeleteBook(id)
+}
+
+func (bs BookServiceStruct) DeleteBooks() error {
+	return bs.storage.DeleteBooks()
 }

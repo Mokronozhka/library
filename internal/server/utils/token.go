@@ -19,7 +19,7 @@ func CreateToken(UID string) (string, error) {
 	payload := jwt.RegisteredClaims{
 		Issuer:    "Server",
 		Subject:   UID,
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 5)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 60)),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
